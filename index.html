@@ -1,0 +1,132 @@
+<!doctype html>
+<html>
+  <head>
+    <script src="https://unpkg.com/vue"></script>
+    <script src="https://unpkg.com/vuejs-datepicker"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.2/css/bulma.min.css">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.3/css/all.css" integrity="sha384-UHRtZLI+pbxtHCWp1t77Bi1L4ZtiqrqD80Kn4Z8NTSRyMA2Fd33n5dQ8lWUE00s/" crossorigin="anonymous">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+  </head>
+
+  <body>
+    <div class="hero is-danger has-text-justified">
+      <div class="hero-body">
+        <h1 class="title has-text-weight-light is-size-1">Menstruation Web</h1>
+      </div>
+    </div>
+    <section class="section has-text-justified">
+      <div class="container">
+        <div id="app">
+          <div class="field has-addons">
+            <div class="control">
+              <div class="select is-danger">
+                <select v-model="selectedCode">
+                  <option v-for="mensa in mensas" :value="mensa.code">{{mensa.name}}</option>
+                </select>
+              </div>
+            </div>
+            <div class="control">
+              <button class="button is-danger" @click="getMenu(selectedCode, new Date())">Submit</button>
+            </div>
+          </div>
+          <datepicker :inline="true" v-model="selectedDate" name="datepicker"></datepicker>
+          <div class="columns">
+            <div class="column" v-for="mealGroup in mealGroups">
+              <table class="table is-hoverable is-fullwidth">
+                <thead>
+                  <tr>
+                    <th style="width:0.1%"/>
+                    <th class="subtitle" style="width:50%">{{mealGroup.name}}</th>
+                    <th style="width:1%"/>
+                    <th style="width:2%">Studenten</th>
+                    <th style="width:2%">Angestellte</th>
+                    <th style="width:2%">Gäste</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="meal in mealGroup.items">
+                    <td :class="mealColor(meal)"></td>
+                    <td>{{meal.name}}</td>
+                    <td><span class="icon"><i :title="meal.tags" class="tag fas" :class="mealTags(meal)"/></span></td>
+                    <td style="text-align:right">{{mealPrice("student", meal)}}</td>
+                    <td style="text-align:right">{{mealPrice("employee", meal)}}</td>
+                    <td style="text-align:right">{{mealPrice("guest", meal)}}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+    <footer class="footer has-text-centered">
+      <div class="content">
+        <p>&copy; <a href="https://github.com/kmein">Kierán Meinhardt</a> 2019</p>
+        <p>Made with <i class="fas fa-heart"></i> in Berlin.</p>
+      </div>
+    </footer>
+
+    <script>
+      axios.defaults.baseURL = "http://scardanelli.local:49080";
+
+      let vue = new Vue({
+        el: "#app",
+        components: {
+          vuejsDatepicker
+        },
+        data: {
+          mealGroups: [],
+          unis: [],
+          selectedCode: 137,
+          selectedDate: new Date(),
+        },
+        created() {
+          this.getUnis();
+        },
+        computed: {
+          mensas() {
+            return this.unis.map(uni => uni.items).reduce((x, y) => x.concat(y), []);
+          },
+        },
+        methods: {
+          getMenu(code, date) {
+            const url = "/menu/" + code + "/" + date.toISOString().slice(0, 10);
+            axios.get(url).then(response => { vue.mealGroups = response.data; });
+          },
+          getUnis() {
+            const url = "/codes";
+            axios.get(url).then(response => { console.log(response); vue.unis = response.data; });
+          },
+          mealPrice(key, meal) {
+            if (meal.price) {
+              return ((meal.price[key] / 100).toFixed(2) + "\u202f€").replace(".", ",");
+            } else {
+              return "";
+            }
+          },
+          mealColor(meal) {
+            switch (meal.color) {
+              case "red": return "has-background-danger";
+              case "yellow": return "has-background-warning";
+              case "green": return "has-background-success";
+            }
+          },
+          mealTags(meal) {
+            return meal.tags.map(tag => {
+              switch (tag) {
+                case "vegan": return "fa-seedling";
+                case "vegetarian": return "fa-carrot";
+                case "organic": return "fa-leaf";
+                case "sustainable fishing": return "fa-fish";
+                case "climate": return "fa-globe-africa";
+                default: return "fa-question-circle";
+              }
+            });
+          },
+        }
+      });
+    </script>
+  </body>
+</html>
