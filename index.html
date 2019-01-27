@@ -11,65 +11,78 @@
   </head>
 
   <body>
-    <div class="hero is-danger has-text-justified">
-      <div class="hero-body">
-        <h1 class="title has-text-weight-light is-size-1">Menstruation Web</h1>
-      </div>
-    </div>
-    <section class="section has-text-justified">
-      <div class="container">
-        <div id="app">
-          <div class="field has-addons">
-            <div class="control">
-              <div class="select is-danger">
+    <div id="app">
+      <div class="hero has-text-justified">
+        <div class="hero-body level">
+          <h1 class="title level-left">Menstruation Web</h1>
+          <div class="field level-right">
+            <div class="control has-icons-left">
+              <div class="select">
                 <select v-model="selectedCode">
-                  <option v-for="mensa in mensas" :value="mensa.code">{{mensa.name}}</option>
+                  <option class="is-fullwidth" v-for="mensa in mensas" :value="mensa.code">{{mensa.name}}</option>
                 </select>
+              </div>
+              <div class="icon is-small">
+                <i class="fas fa-home has-text-danger"></i>
               </div>
             </div>
             <div class="control">
-              <button class="button is-danger" @click="getMenu(selectedCode, new Date())">Submit</button>
+              <vuejs-datepicker
+                :monday-first="true"
+                :calendar-button-icon="'fas fa-calendar-alt has-text-danger'"
+                :calendar-button="true"
+                :disabled-dates="{days:[6,0]}"
+                :format="'dd.MM.yyyy'"
+                @selected="getMenu(this.selectedCode, this.selectedDate)"
+                @selectedDiabled="parametersLegal=false"
+                class="input is-fullwidth"
+                v-model="selectedDate"
+              ></vuejs-datepicker>
+            </div>
+            <div class="control">
+              <button :disabled="!parametersLegal" class="button is-danger is-fullwidth" @click="getMenu(selectedCode, selectedDate)">
+                <span class="icon is-small"><i class="fas fa-utensils"></i></span>
+              </button>
             </div>
           </div>
-          <datepicker :inline="true" v-model="selectedDate" name="datepicker"></datepicker>
-          <div class="columns">
-            <div class="column" v-for="mealGroup in mealGroups">
-              <table class="table is-hoverable is-fullwidth">
-                <thead>
-                  <tr>
-                    <th style="width:0.1%"/>
-                    <th class="subtitle" style="width:50%">{{mealGroup.name}}</th>
-                    <th style="width:1%"/>
-                    <th style="width:2%">Studenten</th>
-                    <th style="width:2%">Angestellte</th>
-                    <th style="width:2%">Gäste</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="meal in mealGroup.items">
-                    <td :class="mealColor(meal)"></td>
-                    <td>{{meal.name}}</td>
-                    <td><span class="icon"><i :title="meal.tags" class="tag fas" :class="mealTags(meal)"/></span></td>
-                    <td style="text-align:right">{{mealPrice("student", meal)}}</td>
-                    <td style="text-align:right">{{mealPrice("employee", meal)}}</td>
-                    <td style="text-align:right">{{mealPrice("guest", meal)}}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
+        </div>
       </div>
+      <section class="section has-text-justified">
+        <div class="container">
+          <table class="table is-hoverable is-fullwidth" v-for="mealGroup in mealGroups">
+            <thead>
+              <tr>
+                <th style="width:0.1%"/>
+                <th class="subtitle" style="width:50%">{{mealGroup.name}}</th>
+                <th style="width:1%"/>
+                <th class="has-text-centered" style="width:2%">Studenten</th>
+                <th class="has-text-centered" style="width:2%">Angestellte</th>
+                <th class="has-text-centered" style="width:2%">Gäste</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="meal in mealGroup.items">
+                <td :class="mealColor(meal)"/>
+                <td>{{meal.name}}</td>
+                <td ><span class="icon"><i :title="tag" class="tag fas" v-for="tag in meal.tags" :class="tagIcon(tag)"/></span></td>
+                <td class="has-text-centered">{{mealPrice("student", meal)}}</td>
+                <td class="has-text-centered">{{mealPrice("employee", meal)}}</td>
+                <td class="has-text-centered">{{mealPrice("guest", meal)}}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
     <footer class="footer has-text-centered">
       <div class="content">
+        <p>Made with <i class="fas fa-heart"></i> in and <a href="https://www.stw.berlin/mensen.html">for</a> Berlin.</p>
         <p>&copy; <a href="https://github.com/kmein">Kierán Meinhardt</a> 2019</p>
-        <p>Made with <i class="fas fa-heart"></i> in Berlin.</p>
       </div>
     </footer>
 
     <script>
-      axios.defaults.baseURL = "http://scardanelli.local:49080";
+      axios.defaults.baseURL = "http://lestrade.local:49080";
 
       let vue = new Vue({
         el: "#app",
@@ -79,15 +92,18 @@
         data: {
           mealGroups: [],
           unis: [],
-          selectedCode: 137,
+          selectedCode: 0,
           selectedDate: new Date(),
+          parametersLegal: true,
         },
         created() {
           this.getUnis();
         },
         computed: {
           mensas() {
-            return this.unis.map(uni => uni.items).reduce((x, y) => x.concat(y), []);
+            return [...new Set(this.unis.map(uni => uni.items).reduce((x, y) => x.concat(y), []))]
+              .filter(mensa => mensa.name.startsWith("Mensa"))
+              .sort((m, n) => m.name > n.name ? 1 : m.name < n.name ? -1 : 0);
           },
         },
         methods: {
@@ -113,17 +129,15 @@
               case "green": return "has-background-success";
             }
           },
-          mealTags(meal) {
-            return meal.tags.map(tag => {
-              switch (tag) {
-                case "vegan": return "fa-seedling";
-                case "vegetarian": return "fa-carrot";
-                case "organic": return "fa-leaf";
-                case "sustainable fishing": return "fa-fish";
-                case "climate": return "fa-globe-africa";
-                default: return "fa-question-circle";
-              }
-            });
+          tagIcon(tag) {
+            switch (tag) {
+              case "vegan": return "fa-seedling";
+              case "vegetarian": return "fa-carrot";
+              case "organic": return "fa-leaf";
+              case "sustainable fishing": return "fa-fish";
+              case "climate": return "fa-globe-africa";
+              default: return "fa-question-circle";
+            }
           },
         }
       });
